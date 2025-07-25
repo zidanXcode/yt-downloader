@@ -140,8 +140,8 @@ def main():
         print()
 
 if _name_ == "_main_":
-    try:
-        main()
+    main()
+        try:
     except KeyboardInterrupt:
         print(f"\n{C}Keluar dari program...{N}")
         sys.exit(0)
