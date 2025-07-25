@@ -355,5 +355,5 @@ def main():
         print(f"{COLORS['red']}Error fatal: {str(e)}{COLORS['reset']}")
         sys.exit(1)
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
