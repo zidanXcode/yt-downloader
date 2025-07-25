@@ -8,7 +8,7 @@ import hashlib
 import platform
 
 GITHUB_RAW_URL = "https://raw.githubusercontent.com/zidanXcode/yt-downloader/main/yt.py"
-LOCAL_FILE = os.path.realpath(_file_)
+LOCAL_FILE = os.path.abspath(_file_)
 IS_WINDOWS = platform.system().lower().startswith('win')
 USE_COLOR = not IS_WINDOWS
 
