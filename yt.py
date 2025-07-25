@@ -2,13 +2,23 @@
 import subprocess
 import sys
 import time
-import re
+import os
+import urllib.request
+import hashlib
+import platform
 
-R = '\033[1;31m'
-G = '\033[1;32m'
-Y = '\033[1;33m'
-C = '\033[1;36m'
-N = '\033[0m'
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/zidanXcode/yt-downloader/main/yt.py"
+LOCAL_FILE = os.path.realpath(_file_)
+IS_WINDOWS = platform.system().lower().startswith('win')
+USE_COLOR = not IS_WINDOWS
+
+R = '\033[1;31m' if USE_COLOR else ''
+G = '\033[1;32m' if USE_COLOR else ''
+Y = '\033[1;33m' if USE_COLOR else ''
+C = '\033[1;36m' if USE_COLOR else ''
+N = '\033[0m' if USE_COLOR else ''
+
+OUTPUT_PATH = os.path.expanduser("~/Downloads/%(playlist_title,s)s%(title).60s.%(ext)s") if IS_WINDOWS else "/sdcard/Download/%(playlist_title,s)s%(title).60s.%(ext)s"
 
 def typing(text, delay=0.004):
     for char in text:
@@ -17,98 +27,87 @@ def typing(text, delay=0.004):
         time.sleep(delay)
     print()
 
-def banner():
-    print(f"{C}Youtube Downloader")
-    print(f"• version : 1.0")
-    print(f"• author  : Zidan")
-    print(f"• github  : \033]8;;https://github.com/zidanXcode\ahttps://github.com/zidanXcode\033]8;;\a{N}\n")
+def hash_file(path):
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
-def is_url(text):
-    return text.startswith("http://") or text.startswith("https://")
-
-def search_youtube(query):
-    print(f"{C}[•] Mencari video: {query}{N}")
+def check_update():
     try:
-        result = subprocess.run(
-            ["yt-dlp", f"ytsearch1:{query}", "--print", "%(title)s ||| %(webpage_url)s ||| %(duration_string)s ||| %(uploader)s"],
-            capture_output=True, text=True, check=True
-        )
-        line = result.stdout.strip().split(" ||| ")
-        if len(line) == 4:
-            title, url, duration, uploader = line
-            print(f"\n{Y}Judul     :{N} {title}")
-            print(f"{Y}Durasi    :{N} {duration}")
-            print(f"{Y}Channel   :{N} {uploader}")
-            print(f"{Y}Link      :{N} {url}")
-            return url
-        else:
-            print(f"{R}[!] Gagal mendapatkan hasil.{N}")
-    except subprocess.CalledProcessError:
-        print(f"{R}[!] Error saat pencarian YouTube.{N}")
-    return None
-
-def download_video(url):
-    cmd = [
-        "yt-dlp",
-        "--ignore-errors",
-        "--continue",
-        "--no-warnings",
-        "--merge-output-format", "mp4",
-        "-f", "bv*[ext=mp4][height<=1080][vcodec^=avc1]+ba[ext=m4a]/bestvideo[height<=1080]+bestaudio",
-        "-o", "/sdcard/Download/%(title).60s.%(ext)s",
-        url
-    ]
-    typing(f"\n{C}[•] Download Video...{N}")
-    subprocess.run(cmd)
-
-def download_audio(url):
-    cmd = [
-        "yt-dlp",
-        "--ignore-errors",
-        "--continue",
-        "--no-warnings",
-        "-x", "--audio-format", "mp3",
-        "--audio-quality", "0",
-        "-o", "/sdcard/Download/%(title).60s.%(ext)s",
-        url
-    ]
-    typing(f"\n{C}[•] Download Audio...{N}")
-    subprocess.run(cmd)
-
-def main():
-    while True:
-        banner()
-        raw = input(f"{Y}[?] Masukkan URL / Judul Pencarian ('exit' untuk keluar): {N}").strip()
-        if raw.lower() in ['exit', 'keluar', 'x']:
-            print(f"{C}Keluar dari program...{N}")
+        tmp_file = "/tmp/yt_latest.py"
+        urllib.request.urlretrieve(GITHUB_RAW_URL, tmp_file)
+        if hash_file(tmp_file) != hash_file(LOCAL_FILE):
+            print(f"{Y}[⟳] Update tersedia! Mengupdate script...{N}")
+            os.replace(tmp_file, LOCAL_FILE)
+            print(f"{G}[✓] Script berhasil diperbarui! Jalankan ulang script.{N}")
             sys.exit()
-
-        if is_url(raw):
-            url = raw
         else:
-            url = search_youtube(raw)
-            if not url:
-                continue
+            os.remove(tmp_file)
+    except Exception as e:
+        print(f"{R}[!] Gagal cek update: {e}{N}")
 
-        print(f"\n{C}[1] Download Video (.mp4)")
-        print(f"[2] Download Audio (.mp3)")
-        print(f"[x] Batal{N}")
-        mode = input(f"{Y}[?] Pilihan: {N}").strip()
+check_update()
 
-        if mode == "1":
-            download_video(url)
-        elif mode == "2":
-            download_audio(url)
-        elif mode.lower() in ["x", "exit", "keluar"]:
-            print(f"{C}Batal...{N}")
-            continue
-        else:
-            print(f"{R}[!] Pilihan tidak valid.{N}")
-            continue
+typing(f"""{C}
+Youtube Downloader
+• version : 1.0
+• author  : Zidan
+• github  : https://github.com/zidanXcode
+• platform: {platform.system()} - {platform.release()}
+{N}""")
 
-        typing(f"\n{G}[✓] Selesai! Cek folder /sdcard/Download{N}")
-        input(f"\n{Y}Tekan Enter untuk lanjut...{N}")
-        print()
+urls = input(f"{Y}[?] Masukkan URL atau Query: {N}").strip()
+if not urls:
+    print(f"{R}[!] Tidak ada input!{N}")
+    sys.exit()
 
-if _name_ == "_main_":
-    main()
+is_query = not urls.startswith("http")
+if is_query:
+    typing(f"{C}[•] Mencari video untuk: {urls}{N}")
+    search_cmd = ["yt-dlp", f"ytsearch1:{urls}", "--print", "id"]
+    try:
+        result = subprocess.check_output(search_cmd, text=True).strip()
+        if not result:
+            print(f"{R}[!] Tidak ditemukan hasil!{N}")
+            sys.exit()
+        urls = f"https://youtu.be/{result}"
+    except:
+        print(f"{R}[!] Gagal melakukan pencarian!{N}")
+        sys.exit()
+
+print(f"\n{C}[1] Video (.mp4)")
+print(f"[2] Audio (.mp3){N}")
+mode = input(f"{Y}[?] Pilihan: {N}").strip()
+
+base_cmd = [
+    "yt-dlp",
+    "--no-cache-dir",
+    "--ignore-errors",
+    "--continue",
+    "--yes-playlist",
+    "--no-warnings",
+    "-o", OUTPUT_PATH
+]
+
+if mode == "1":
+    base_cmd += [
+        "-f", "bv*[ext=mp4][height<=1080][vcodec^=avc1]+ba[ext=m4a]/bestvideo[height<=1080]+bestaudio",
+        "--merge-output-format", "mp4"
+    ]
+elif mode == "2":
+    base_cmd += [
+        "-x", "--audio-format", "mp3",
+        "--audio-quality", "0"
+    ]
+else:
+    print(f"{R}[!] Pilihan tidak valid!{N}")
+    sys.exit()
+
+base_cmd += [urls]
+
+typing(f"\n{C}[•] Sedang mendownload...{N}")
+try:
+    subprocess.run(base_cmd, check=True)
+    folder = "~/Downloads" if IS_WINDOWS else "/sdcard/Download"
+    typing(f"{G}[✓] Selesai! Cek folder {folder}{N}")
+except subprocess.CalledProcessError:
+    print(f"{R}[!] Terjadi error saat download!{N}")
