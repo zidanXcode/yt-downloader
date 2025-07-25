@@ -17,15 +17,17 @@ yt-downloader adalah script ringan berbasis yt-dlp untuk download video/audio da
 - Input URL atau pencarian query
 - Auto Update Script
 
-## Cara Instalasi (Termux / Linux)
-bash
-curl -L https://raw.githubusercontent.com/zidanXcode/yt-downloader/main/installer.sh | bash
-
+## Cara Instalasi
+```bash
+git clone https://github.com/zidanXcode/yt-downloader
+cd yt-downloader
+bash install.sh
+```
 
 ## Cara Penggunaan
-bash
+```bash
 ytdl
-
+```
 Kemudian masukkan URL atau judul video, lalu pilih opsi (video/audio).
 
 
