@@ -143,5 +143,4 @@ if _name_ == "_main_":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{C}Keluar dari program...{N}")
-        sys.exit(0)
+        print(f"\n{R}⨯ Dibatalkan oleh pengguna.{N}")
