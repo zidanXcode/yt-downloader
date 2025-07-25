@@ -9,6 +9,12 @@ import hashlib
 GITHUB_RAW_URL = "https://raw.githubusercontent.com/zidanXcode/yt-downloader/main/yt.py"
 LOCAL_FILE = os.path.realpath(__file__)
 
+R = '\033[1;31m'
+G = '\033[1;32m'
+Y = '\033[1;33m'
+C = '\033[1;36m'
+N = '\033[0m'
+
 def hash_file(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
@@ -18,22 +24,14 @@ def check_update():
         tmp_file = "/tmp/yt_latest.py"
         urllib.request.urlretrieve(GITHUB_RAW_URL, tmp_file)
         if hash_file(tmp_file) != hash_file(LOCAL_FILE):
-            print("[⟳] Update tersedia! Mengupdate script...")
+            print(f"{Y}[⟳] Update tersedia! Mengupdate script...{N}")
             os.replace(tmp_file, LOCAL_FILE)
-            print("[✓] Script berhasil diperbarui! Silakan jalankan ulang.")
+            print(f"{G}[✓] Script berhasil diperbarui! Jalankan ulang script.{N}")
             exit()
         else:
             os.remove(tmp_file)
     except:
         pass
-
-check_update()
-
-R = '\033[1;31m'
-G = '\033[1;32m'
-Y = '\033[1;33m'
-C = '\033[1;36m'
-N = '\033[0m'
 
 def typing(text, delay=0.01):
     for char in text:
@@ -42,12 +40,14 @@ def typing(text, delay=0.01):
         time.sleep(delay)
     print()
 
+check_update()
+
 typing(f"""{C}
 Youtube Downloader
 • version : 1.0
 • author  : Zidan
-• github  : https://github.com/zidanXcode{N}
-""", delay=0.004)
+• github  : https://github.com/zidanXcode
+{N}""", delay=0.004)
 
 urls = input(f"{Y}[?] Masukkan URL atau Query: {N}").strip()
 if not urls:
@@ -68,8 +68,7 @@ if is_query:
         print(f"{R}[!] Gagal melakukan pencarian!{N}")
         sys.exit()
 
-print(f"
-{C}[1] Video (.mp4)")
+print(f"{C}[1] Video (.mp4)")
 print(f"[2] Audio (.mp3){N}")
 mode = input(f"{Y}[?] Pilihan: {N}").strip()
 
@@ -99,12 +98,9 @@ else:
 
 base_cmd += [urls]
 
-typing(f"
-{C}[•] Sedang mendownload...{N}")
+typing(f"{C}[•] Sedang mendownload...{N}")
 try:
     subprocess.run(base_cmd, check=True)
-    typing(f"
-{G}[✓] Selesai! Cek folder /sdcard/Download{N}")
+    typing(f"{G}[✓] Selesai! Cek folder /sdcard/Download{N}")
 except subprocess.CalledProcessError:
-    print(f"
-{R}[!] Terjadi error saat download!{N}")
+    print(f"{R}[!] Terjadi error saat download!{N}")
