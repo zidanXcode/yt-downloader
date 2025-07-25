@@ -1,35 +1,34 @@
 #!/bin/bash
 
-echo "Menginstall Youtube Downloader..."
+echo "Menginstall yt-downloader..."
 
-pkg update -y && pkg upgrade -y
-pkg install -y python git ffmpeg curl
+PLATFORM="$(uname -o 2>/dev/null || uname -s)"
+IS_TERMUX=$(command -v termux-info >/dev/null && echo true)
+IS_ISH=$(grep -qi 'iSH' /proc/version && echo true)
+
+if [ "$IS_TERMUX" = true ]; then
+    pkg update -y && pkg install -y python ffmpeg git
+elif [ "$IS_ISH" = true ]; then
+    apk update && apk add python3 py3-pip ffmpeg git
+elif [[ "$PLATFORM" == Linux ]]; then
+    sudo apt update && sudo apt install -y python3 python3-pip ffmpeg git
+elif [[ "$PLATFORM" == Darwin ]]; then
+    brew install python ffmpeg git
+fi
 
 if ! command -v yt-dlp >/dev/null 2>&1; then
     echo "Menginstall yt-dlp..."
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /data/data/com.termux/files/usr/bin/yt-dlp
-    chmod +x /data/data/com.termux/files/usr/bin/yt-dlp
+    pip3 install --upgrade yt-dlp
 else
-    echo "✅ yt-dlp sudah terinstall."
+    echo "✅ yt-dlp sudah terinstall"
 fi
 
 if [ ! -d "$HOME/yt-downloader" ]; then
-    git clone https://github.com/zidanXcode/yt-downloader.git $HOME/yt-downloader
+    git clone https://github.com/zidanXcode/yt-downloader "$HOME/yt-downloader"
 else
-    echo "Folder yt-downloader sudah ada, skip cloning."
-fi
-
-if ! grep -q "alias ytdl=" "$HOME/.bashrc"; then
-    echo "Menambahkan alias ytdl ke .bashrc..."
-    cat << 'EOF' >> "$HOME/.bashrc"
-
-alias ytdl='cd ~/yt-downloader && git pull --quiet && python yt.py'
-EOF
-else
-    echo "✅ Alias ytdl sudah ada."
+    echo "Folder yt-downloader sudah ada"
 fi
 
 echo ""
-echo "✅ Instalasi selesai!"
-echo "Jalankan 'source ~/.bashrc' atau restart Termux untuk mulai menggunakan."
-echo "Ketik 'ytdl' di terminal untuk membuka Youtube Downloader buatan Zidan."
+echo "✅ Instalasi selesai! Jalankan dengan:"
+echo "   cd ~/yt-downloader && python3 yt.py"
