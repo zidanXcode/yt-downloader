@@ -5,27 +5,15 @@ import time
 import os
 import urllib.request
 import hashlib
-import platform
 
 GITHUB_RAW_URL = "https://raw.githubusercontent.com/zidanXcode/yt-downloader/main/yt.py"
-LOCAL_FILE = os.path.abspath(_file_)
-IS_WINDOWS = platform.system().lower().startswith('win')
-USE_COLOR = not IS_WINDOWS
+LOCAL_FILE = os.path.realpath(_file_)
 
-R = '\033[1;31m' if USE_COLOR else ''
-G = '\033[1;32m' if USE_COLOR else ''
-Y = '\033[1;33m' if USE_COLOR else ''
-C = '\033[1;36m' if USE_COLOR else ''
-N = '\033[0m' if USE_COLOR else ''
-
-OUTPUT_PATH = os.path.expanduser("~/Downloads/%(playlist_title,s)s%(title).60s.%(ext)s") if IS_WINDOWS else "/sdcard/Download/%(playlist_title,s)s%(title).60s.%(ext)s"
-
-def typing(text, delay=0.004):
-    for char in text:
-        sys.stdout.write(char)
-        sys.stdout.flush()
-        time.sleep(delay)
-    print()
+R = '\033[1;31m'
+G = '\033[1;32m'
+Y = '\033[1;33m'
+C = '\033[1;36m'
+N = '\033[0m'
 
 def hash_file(path):
     with open(path, "rb") as f:
@@ -39,11 +27,18 @@ def check_update():
             print(f"{Y}[⟳] Update tersedia! Mengupdate script...{N}")
             os.replace(tmp_file, LOCAL_FILE)
             print(f"{G}[✓] Script berhasil diperbarui! Jalankan ulang script.{N}")
-            sys.exit()
+            exit()
         else:
             os.remove(tmp_file)
-    except Exception as e:
-        print(f"{R}[!] Gagal cek update: {e}{N}")
+    except:
+        pass
+
+def typing(text, delay=0.01):
+    for char in text:
+        sys.stdout.write(char)
+        sys.stdout.flush()
+        time.sleep(delay)
+    print()
 
 check_update()
 
@@ -52,8 +47,7 @@ Youtube Downloader
 • version : 1.0
 • author  : Zidan
 • github  : https://github.com/zidanXcode
-• platform: {platform.system()} - {platform.release()}
-{N}""")
+{N}""", delay=0.004)
 
 urls = input(f"{Y}[?] Masukkan URL atau Query: {N}").strip()
 if not urls:
@@ -74,18 +68,18 @@ if is_query:
         print(f"{R}[!] Gagal melakukan pencarian!{N}")
         sys.exit()
 
-print(f"\n{C}[1] Video (.mp4)")
+print(f"{C}[1] Video (.mp4)")
 print(f"[2] Audio (.mp3){N}")
 mode = input(f"{Y}[?] Pilihan: {N}").strip()
 
+output = "/sdcard/Download/%(playlist_title,s)s%(title).60s.%(ext)s"
 base_cmd = [
     "yt-dlp",
-    "--no-cache-dir",
     "--ignore-errors",
     "--continue",
     "--yes-playlist",
     "--no-warnings",
-    "-o", OUTPUT_PATH
+    "-o", output
 ]
 
 if mode == "1":
@@ -104,10 +98,9 @@ else:
 
 base_cmd += [urls]
 
-typing(f"\n{C}[•] Sedang mendownload...{N}")
+typing(f"{C}[•] Sedang mendownload...{N}")
 try:
     subprocess.run(base_cmd, check=True)
-    folder = "~/Downloads" if IS_WINDOWS else "/sdcard/Download"
-    typing(f"{G}[✓] Selesai! Cek folder {folder}{N}")
+    typing(f"{G}[✓] Selesai! Cek folder /sdcard/Download{N}")
 except subprocess.CalledProcessError:
     print(f"{R}[!] Terjadi error saat download!{N}")
