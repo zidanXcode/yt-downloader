@@ -147,7 +147,7 @@ def main():
         input(f"\n{Y}Tekan Enter untuk lanjut...{N}")
         print()
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
