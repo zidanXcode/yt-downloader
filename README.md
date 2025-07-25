@@ -1,8 +1,12 @@
-# yt-downloader by zidanXcode
-
-[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![yt-dlp](https://img.shields.io/badge/yt--dlp-2024-orange?logo=youtube&logoColor=white)](https://github.com/yt-dlp/yt-dlp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+<h1 align="center">🎬 YouTube Downloader for Termux</h1>
+<p align="center">
+  <img src="https://img.shields.io/badge/yt--dlp-powered-red?logo=youtube&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Made%20with-Python-blue?logo=python&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Shell-Bash-green?logo=gnubash&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Platform-Termux-black?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/github/license/zidanXcode/yt-downloader?style=for-the-badge" />
+  <img src="https://img.shields.io/github/stars/zidanXcode/yt-downloader?style=for-the-badge" />
+</p>
 
 yt-downloader adalah script ringan berbasis yt-dlp untuk download video/audio dari YouTube via terminal (Termux/iSH/Linux).
 
