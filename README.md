@@ -1,4 +1,4 @@
-<h1 align="center">🎬 YouTube Downloader for Termux</h1>
+<h1 align="center">🎬 YouTube Downloader for Termux/iSH/Linux</h1>
 <p align="center">
   <img src="https://img.shields.io/badge/yt--dlp-powered-red?logo=youtube&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Made%20with-Python-blue?logo=python&style=for-the-badge" />
@@ -27,14 +27,6 @@ bash
 ytdl
 
 Kemudian masukkan URL atau judul video, lalu pilih opsi (video/audio).
-
-## 📁 Struktur Proyek
-
-yt-downloader/
-├── yt.py
-├── installer.sh
-├── license
-└── readme.md
 
 
 ## 📜 Lisensi
