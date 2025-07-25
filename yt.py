@@ -84,14 +84,20 @@ class ModernYTDownloader:
     
     def _get_download_path(self) -> Path:
         system = platform.system().lower()
-        if system == 'windows':
+        
+        if os.path.exists('/data/data/com.termux') or 'TERMUX_VERSION' in os.environ:
+            termux_downloads = Path.home() / 'storage' / 'downloads'
+            if termux_downloads.exists():
+                return termux_downloads
+            shared_downloads = Path('/storage/emulated/0/Download')
+            if shared_downloads.exists():
+                return shared_downloads
+            return Path.home() / 'downloads'
+        elif system == 'windows':
             return Path.home() / 'Downloads'
-        elif system == 'darwin':
+        elif system == 'darwin': 
             return Path.home() / 'Downloads'
         elif system == 'linux':
-            android_path = Path('/sdcard/Download')
-            if android_path.exists():
-                return android_path
             return Path.home() / 'Downloads'
         else:
             return Path.home() / 'Downloads'
@@ -129,7 +135,7 @@ class ModernYTDownloader:
                     if version_date < "20241104":
                         print(f"{colors.YELLOW}⚠ Versi yt-dlp lama terdeteksi. Disarankan update ke versi terbaru.{colors.RESET}")
                 except:
-                    pass
+                    pass 
                 
                 return True
             else:
@@ -142,7 +148,7 @@ class ModernYTDownloader:
             return False
 
     async def update_ytdlp(self) -> bool:
-        print(f"{colors.CYAN}🔄 Mengecek pembaruan yt-dlp...{colors.RESET}")
+        print(f"{colors.CYAN}Mengecek pembaruan yt-dlp...{colors.RESET}")
         try:
             process = await asyncio.create_subprocess_exec(
                 'yt-dlp', '-U',
@@ -170,7 +176,7 @@ class ModernYTDownloader:
         return url.startswith(('http://', 'https://', 'www.'))
 
     async def search_youtube(self, query: str, max_results: int = 5) -> List[VideoInfo]:
-        print(f"{colors.CYAN}🔍 Mencari: {query}{colors.RESET}")
+        print(f"{colors.CYAN}Mencari: {query}{colors.RESET}")
         
         try:
             cmd = [
@@ -394,12 +400,12 @@ class ModernYTDownloader:
                 print(f"\n{colors.GREEN}✅ Audio berhasil didownload!{colors.RESET}")
                 return True
             else:
-                print(f"\n{colors.RED}❌ Download gagal{colors.RESET}")
+                print(f"\n{colors.RED}Download gagal{colors.RESET}")
                 return False
                 
         except Exception as e:
             self.logger.error(f"Audio download error: {e}")
-            print(f"\n{colors.RED}❌ Error: {e}{colors.RESET}")
+            print(f"\n{colors.RED}Error: {e}{colors.RESET}")
             return False
 
     def show_banner(self):
@@ -511,7 +517,7 @@ class ModernYTDownloader:
                             await self.download_audio(video_info.url)
                 
                 elif choice == '3':
-                    file_path = input(f"{colors.YELLOW}📄 Path file URL (satu URL per baris): {colors.RESET}").strip()
+                    file_path = input(f"{colors.YELLOW}Path file URL (satu URL per baris): {colors.RESET}").strip()
                     await self.batch_download(file_path)
                 
                 elif choice == '4':
@@ -530,7 +536,7 @@ class ModernYTDownloader:
                 break
             except Exception as e:
                 self.logger.error(f"Main loop error: {e}")
-                print(f"{colors.RED}❌ Unexpected error: {e}{colors.RESET}")
+                print(f"{colors.RED}Unexpected error: {e}{colors.RESET}")
 
 def main():
     parser = argparse.ArgumentParser(description='Modern YouTube Downloader')
