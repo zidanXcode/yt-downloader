@@ -26,7 +26,7 @@ COLORS = {
 class YouTubeDownloader:
     def _init_(self):
         self.output_dir = self._get_output_directory()
-        self.ytdlp_available = self._check_ytdlp()
+        self.ytdl_available = self._check_ytdlp()
         self.progress_lock = threading.Lock()
         
     def _get_output_directory(self):
@@ -60,7 +60,7 @@ class YouTubeDownloader:
                 sys.stdout.flush()
                 time.sleep(delay)
             except KeyboardInterrupt:
-                print()
+                print() 
                 return
         print()
     
@@ -73,7 +73,7 @@ class YouTubeDownloader:
         print(f"• platform: {platform.system()} - {platform.release()}\n")
     
     def update_ytdlp(self):
-        if not self.ytdlp_available:
+        if not self.ytdl_available:
             self.print_colored("[!] yt-dlp tidak tersedia. Install dengan: pip install yt-dlp", 'red')
             return False
             
@@ -117,7 +117,7 @@ class YouTubeDownloader:
     def search_youtube(self, query):
         self.print_colored(f"[•] Mencari: {query}", 'cyan')
         
-        if not self.ytdlp_available:
+        if not self.ytdl_available:
             self.print_colored("[!] yt-dlp tidak tersedia", 'red')
             return None
         
@@ -225,7 +225,7 @@ class YouTubeDownloader:
         return base_cmd
     
     def download_content(self, url, format_type):
-        if not self.ytdlp_available:
+        if not self.ytdl_available:
             self.print_colored("[!] yt-dlp tidak tersedia", 'red')
             return False
         
@@ -291,7 +291,7 @@ class YouTubeDownloader:
                 return None
     
     def run(self):
-        if not self.ytdlp_available:
+        if not self.ytdl_available:
             self.print_colored("[!] CRITICAL: yt-dlp tidak ditemukan!", 'red')
             self.print_colored("[•] Install dengan: pip install yt-dlp", 'yellow')
             return
@@ -355,5 +355,5 @@ def main():
         print(f"{COLORS['red']}Error fatal: {str(e)}{COLORS['reset']}")
         sys.exit(1)
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
