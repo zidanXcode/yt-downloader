@@ -21,6 +21,8 @@ RESOLUTION_MAP = {
     "1080": "bv*[height<=1080]+ba/best[height<=1080]",
 }
 
+mpv_process = None
+
 def typing(text, delay=0.004):
     for char in text:
         sys.stdout.write(char)
@@ -101,25 +103,24 @@ def download_audio(url, extra_args=None):
     except Exception as e:
         print(f"{R}[!] Gagal download audio: {e}{N}")
 
-def play_video(url):
+def play_audio_background(url):
+    global mpv_process
     if shutil.which("mpv"):
-        typing(f"{C}[•] Streaming video...{N}")
+        typing(f"{C}[•] Streaming audio... (Ketik 'stop' untuk berhenti){N}")
         try:
-            subprocess.run(["mpv", "--no-terminal", url])
-        except Exception as e:
-            print(f"{R}[!] Gagal play video: {e}{N}")
-    else:
-        print(f"{R}[!] mpv tidak ditemukan. Instal dulu (pkg install mpv).{N}")
-
-def play_audio(url):
-    if shutil.which("mpv"):
-        typing(f"{C}[•] Streaming audio...{N}")
-        try:
-            subprocess.run(["mpv", "--no-video", url])
+            mpv_process = subprocess.Popen(["mpv", "--no-video", url])
         except Exception as e:
             print(f"{R}[!] Gagal play audio: {e}{N}")
     else:
-        print(f"{R}[!] mpv tidak ditemukan. Instal dulu (pkg install mpv).{N}")
+        print(f"{R}[!] mpv tidak ditemukan. Instal dulu.{N}")
+
+def stop_audio():
+    global mpv_process
+    if mpv_process and mpv_process.poll() is None:
+        mpv_process.terminate()
+        print(f"{G}[✓] Audio dihentikan.{N}")
+    else:
+        print(f"{Y}[•] Tidak ada audio yang sedang diputar.{N}")
 
 def main():
     auto_update_ytdlp()
@@ -152,8 +153,7 @@ def main():
 
         print(f"\n{C}[1] Download Video (pilih resolusi)")
         print(f"[2] Download Audio (.mp3)")
-        print(f"[3] Play YouTube (stream video)")
-        print(f"[4] Play Audio (stream musik)")
+        print(f"[3] Play Audio (stream musik)")
         print(f"[x] Batal{N}")
         mode = input(f"{Y}[?] Pilih: {N}").strip()
 
@@ -165,9 +165,10 @@ def main():
         elif mode == "2":
             download_audio(url, extra_args)
         elif mode == "3":
-            play_video(url)
-        elif mode == "4":
-            play_audio(url)
+            play_audio_background(url)
+            stop = input(f"{Y}[?] Ketik 'stop' untuk hentikan audio: {N}").strip().lower()
+            if stop == "stop":
+                stop_audio()
         elif mode.lower() in ["x", "exit", "keluar"]:
             print(f"{C}Dibatalkan...{N}")
         else:
