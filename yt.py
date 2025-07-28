@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-import subprocess, sys, time, platform, os, shutil
+import subprocess
+import sys
+import time
+import platform
+import os
+import json
+import socket
+import threading
 
 IS_WINDOWS = platform.system().lower().startswith('win')
 IS_ANDROID = 'android' in platform.platform().lower() or 'termux' in os.getenv("PREFIX", "").lower()
@@ -11,7 +18,11 @@ Y = '\033[1;33m' if USE_COLOR else ''
 C = '\033[1;36m' if USE_COLOR else ''
 N = '\033[0m' if USE_COLOR else ''
 
-DOWNLOAD_DIR = os.path.expanduser("/Downloads") if IS_WINDOWS else "/sdcard/Download" if IS_ANDROID else os.path.expanduser("/Downloads")
+DOWNLOAD_DIR = (
+    os.path.expanduser("~/Downloads")
+    if IS_WINDOWS else "/sdcard/Download"
+    if IS_ANDROID else os.path.expanduser("~/Downloads")
+)
 
 RESOLUTION_MAP = {
     "140": "140",
@@ -29,8 +40,8 @@ def typing(text, delay=0.004):
     print()
 
 def banner():
-    print(f"{C}Youtube Downloader CLI")
-    print(f"• version : 2.1")
+    print(f"{C}Youtube Downloader")
+    print(f"• version : 1.4")
     print(f"• author  : Zidan")
     print(f"• github  : https://github.com/zidanXcode{N}")
     print(f"• platform: {platform.system()} - {platform.release()}\n")
@@ -70,56 +81,89 @@ def get_playlist_info(url):
             ["yt-dlp", "--flat-playlist", "--print", "%(title)s", url],
             capture_output=True, text=True, timeout=30, check=True
         )
-        return result.stdout.strip().splitlines()
+        videos = result.stdout.strip().splitlines()
+        return videos
     except Exception as e:
         print(f"{R}[!] Gagal mengambil info playlist: {e}{N}")
         return []
 
-def download_video(url, res, extra_args=None):
-    format_str = RESOLUTION_MAP.get(res)
+def play_with_controls(url, audio_only=False):
+    socket_path = "/tmp/mpvsocket"
+    if os.path.exists(socket_path):
+        os.remove(socket_path)
+
+    cmd = ["mpv", url, f"--input-ipc-server={socket_path}"]
+    if audio_only:
+        cmd += ["--no-video"]
+
+    def user_controls():
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                sock.connect(socket_path)
+                print(f"\n{Y}Kontrol: [p] pause/resume | [+/-] volume | [q] quit{N}")
+                while True:
+                    key = input().strip().lower()
+                    if key == "p":
+                        msg = {"command": ["cycle", "pause"]}
+                    elif key == "+":
+                        msg = {"command": ["add", "volume", 5]}
+                    elif key == "-":
+                        msg = {"command": ["add", "volume", -5]}
+                    elif key == "q":
+                        msg = {"command": ["quit"]}
+                    else:
+                        continue
+                    sock.send((json.dumps(msg) + "\n").encode("utf-8"))
+        except Exception as e:
+            print(f"{R}Kontrol gagal: {e}{N}")
+
+    threading.Thread(target=user_controls, daemon=True).start()
+    subprocess.run(cmd)
+
+def download_by_resolution(url, resolution_choice, extra_args=None):
+    format_str = RESOLUTION_MAP.get(resolution_choice)
     if not format_str:
         print(f"{R}[!] Resolusi tidak dikenali.{N}")
         return
+
+    extra_args = extra_args or []
     output_template = os.path.join(DOWNLOAD_DIR, "%(title).60s.%(ext)s")
-    cmd = ["yt-dlp", "-f", format_str, "-o", output_template, url]
-    cmd += extra_args or []
-    typing(f"\n{C}[•] Mendownload video {res}p...{N}")
+    cmd = [
+        "yt-dlp", "--no-cache-dir", "--ignore-errors",
+        "--continue", "--no-warnings",
+        "-f", format_str, "-o", output_template,
+        url
+    ] + extra_args
+
+    typing(f"\n{C}[•] Mendownload video resolusi {resolution_choice}p...{N}")
     try:
         subprocess.run(cmd, timeout=600)
-        print(f"{G}[✓] Selesai! Lihat di: {DOWNLOAD_DIR}{N}")
-    except Exception as e:
-        print(f"{R}[!] Gagal download video: {e}{N}")
+        typing(f"\n{G}[✓] Selesai! Cek folder: {DOWNLOAD_DIR}{N}")
+    except subprocess.TimeoutExpired:
+        print(f"{R}[!] Waktu download habis.{N}")
+    except FileNotFoundError:
+        print(f"{R}[!] yt-dlp tidak ditemukan!{N}")
 
 def download_audio(url, extra_args=None):
+    extra_args = extra_args or []
     output_template = os.path.join(DOWNLOAD_DIR, "%(title).60s.%(ext)s")
-    cmd = ["yt-dlp", "-x", "--audio-format", "mp3", "--audio-quality", "0", "-o", output_template, url]
-    cmd += extra_args or []
-    typing(f"\n{C}[•] Mendownload Audio...{N}")
+    cmd = [
+        "yt-dlp", "--no-cache-dir", "--ignore-errors",
+        "--continue", "--no-warnings",
+        "-x", "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "-o", output_template,
+        url
+    ] + extra_args
+
+    typing(f"\n{C}[•] Download Audio...{N}")
     try:
         subprocess.run(cmd, timeout=600)
-        print(f"{G}[✓] Selesai! Lihat di: {DOWNLOAD_DIR}{N}")
-    except Exception as e:
-        print(f"{R}[!] Gagal download audio: {e}{N}")
-
-def play_video(url):
-    if shutil.which("mpv"):
-        typing(f"{C}[•] Streaming video...{N}")
-        try:
-            subprocess.run(["mpv", "--no-terminal", url])
-        except Exception as e:
-            print(f"{R}[!] Gagal play video: {e}{N}")
-    else:
-        print(f"{R}[!] mpv tidak ditemukan. Instal dulu (pkg install mpv).{N}")
-
-def play_audio(url):
-    if shutil.which("mpv"):
-        typing(f"{C}[•] Streaming audio...{N}")
-        try:
-            subprocess.run(["mpv", "--no-video", url])
-        except Exception as e:
-            print(f"{R}[!] Gagal play audio: {e}{N}")
-    else:
-        print(f"{R}[!] mpv tidak ditemukan. Instal dulu (pkg install mpv).{N}")
+        typing(f"\n{G}[✓] Selesai! Cek folder: {DOWNLOAD_DIR}{N}")
+    except subprocess.TimeoutExpired:
+        print(f"{R}[!] Download audio terlalu lama, dibatalkan.{N}")
+    except FileNotFoundError:
+        print(f"{R}[!] yt-dlp tidak ditemukan!{N}")
 
 def main():
     auto_update_ytdlp()
@@ -131,43 +175,50 @@ def main():
             break
 
         if raw.lower() in ['exit', 'keluar', 'x']:
-            print(f"{C}Keluar...{N}")
+            print(f"{C}Keluar dari program...{N}")
             break
 
         url = raw if is_url(raw) else search_youtube(raw)
-        if not url: continue
+        if not url:
+            continue
 
         extra_args = []
-        if "playlist?" in url or "list=" in url:
-            videos = get_playlist_info(url)
-            total = len(videos)
-            print(f"\n{C}Playlist terdeteksi: {total} video.{N}")
-            preview = "\n".join([f"{i+1}. {title}" for i, title in enumerate(videos[:5])])
-            print(f"{Y}Contoh:\n{preview}{N}")
-            confirm = input(f"{Y}[?] Download semua? [Y/n]: {N}").strip().lower()
+        is_playlist = "playlist?" in url or "list=" in url
+        if is_playlist:
+            video_list = get_playlist_info(url)
+            total = len(video_list)
+            print(f"\n{C}Playlist terdeteksi: {total} video ditemukan.{N}")
+            preview = "\n".join([f"{i+1}. {title}" for i, title in enumerate(video_list[:5])])
+            print(f"{Y}Contoh video dalam playlist:\n{preview}{N}")
+
+            confirm = input(f"{Y}[?] Mau download semua ({total} video)? [Y/n]: {N}").strip().lower()
             if confirm == "n":
-                max_videos = input(f"{Y}[?] Jumlah video? (1-{total}): {N}").strip()
-                if max_videos.isdigit():
-                    extra_args = ["--playlist-end", max_videos]
+                max_videos = input(f"{Y}[?] Berapa video yang ingin di-download? (1-{total}): {N}").strip()
+                if max_videos.isdigit() and 1 <= int(max_videos) <= total:
+                    extra_args = ["--playlist-end", str(max_videos)]
+                else:
+                    print(f"{R}[!] Input tidak valid. Membatalkan...{N}")
+                    continue
 
         print(f"\n{C}[1] Download Video (pilih resolusi)")
         print(f"[2] Download Audio (.mp3)")
-        print(f"[3] Play YouTube (stream video)")
-        print(f"[4] Play Audio (stream musik)")
+        print(f"[3] Play Video")
+        print(f"[4] Play Audio")
         print(f"[x] Batal{N}")
-        mode = input(f"{Y}[?] Pilih: {N}").strip()
+        mode = input(f"{Y}[?] Pilihan: {N}").strip()
 
         if mode == "1":
-            print(f"\n{C}Resolusi tersedia:")
-            print(" • ".join([f"{r}p" for r in RESOLUTION_MAP.keys()]))
-            res = input(f"{Y}[?] Resolusi (misal 480): {N}").strip()
-            download_video(url, res, extra_args)
+            print(f"\n{C}Pilih resolusi video:")
+            for r in RESOLUTION_MAP.keys():
+                print(f"• {r}p")
+            resolution_choice = input(f"{Y}[?] Resolusi (misal 480): {N}").strip()
+            download_by_resolution(url, resolution_choice, extra_args)
         elif mode == "2":
             download_audio(url, extra_args)
         elif mode == "3":
-            play_video(url)
+            play_with_controls(url)
         elif mode == "4":
-            play_audio(url)
+            play_with_controls(url, audio_only=True)
         elif mode.lower() in ["x", "exit", "keluar"]:
             print(f"{C}Dibatalkan...{N}")
         else:
