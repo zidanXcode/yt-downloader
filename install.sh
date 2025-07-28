@@ -134,3 +134,7 @@ install_script
 
 echo ""
 log_success "Instalasi selesai! Jalankan dengan: ${CYA}$APP_NAME${NOC}"
+install_script
+
+echo ""
+log_success "Instalasi selesai! Jalankan dengan: ${CYA}$APP_NAME${NOC}"
