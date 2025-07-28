@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_NAME="yt-downloader"
+APP_NAME="ytdl"
 SCRIPT_NAME="yt.py"
 INSTALL_PATH="$HOME/.local/bin"
 PYTHON_DEPS=("yt-dlp" "rich" "requests")
