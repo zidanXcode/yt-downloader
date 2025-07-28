@@ -3,7 +3,6 @@
 APP_NAME="yt-downloader"
 SCRIPT_NAME="yt.py"
 INSTALL_PATH="$HOME/.local/bin"
-REPO_URL="https://github.com/yt-dlp/yt-dlp.git"
 PYTHON_DEPS=("yt-dlp" "rich" "requests")
 
 RED='\033[0;31m'
@@ -19,6 +18,10 @@ log_error()   { echo -e "${RED}[✗] $1${NOC}"; }
 
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+pip_package_installed() {
+    python3 -c "import $1" >/dev/null 2>&1
 }
 
 detect_package_manager() {
@@ -48,63 +51,71 @@ show_spinner() {
 }
 
 install_dependencies() {
-    log_info "Menginstall dependencies sistem..."
+    log_info "Cek & install dependencies sistem..."
 
-    case "$INSTALL_CMD" in
-        "pkg") 
-            pkg update -y >/dev/null 2>&1 &
-            show_spinner $!
-            pkg install -y python ffmpeg git curl wget mpv >/dev/null 2>&1 &
-            show_spinner $!
-            ;;
-        
-        "apk")
-            apk update >/dev/null 2>&1 &
-            show_spinner $!
-            apk add python3 py3-pip ffmpeg git curl wget >/dev/null 2>&1 &
-            show_spinner $!
-            log_warning "mpv tidak tersedia di iSH. Fitur Play tidak aktif."
-            ;;
+    update_pkg() {
+        case "$INSTALL_CMD" in
+            "pkg") pkg update -y >/dev/null 2>&1 ;;
+            "apk") apk update >/dev/null 2>&1 ;;
+            "apt") command_exists sudo && sudo apt update >/dev/null 2>&1 || apt update >/dev/null 2>&1 ;;
+            "brew") brew update >/dev/null 2>&1 ;;
+        esac
+    }
 
-        "apt")
-            if command_exists sudo; then
-                sudo apt update >/dev/null 2>&1 &
-            else
-                apt update >/dev/null 2>&1 &
-            fi
-            show_spinner $!
+    update_pkg & show_spinner $!
 
-            if command_exists sudo; then
-                sudo apt install -y python3 python3-pip ffmpeg git curl wget mpv >/dev/null 2>&1 &
-            else
-                apt install -y python3 python3-pip ffmpeg git curl wget mpv >/dev/null 2>&1 &
-            fi
-            show_spinner $!
-            ;;
+    install_pkg() {
+        local pkg="$1"
+        if ! command_exists "$pkg"; then
+            case "$INSTALL_CMD" in
+                "pkg") pkg install -y "$pkg" >/dev/null 2>&1 ;;
+                "apk") apk add "$pkg" >/dev/null 2>&1 ;;
+                "apt") command_exists sudo && sudo apt install -y "$pkg" >/dev/null 2>&1 || apt install -y "$pkg" >/dev/null 2>&1 ;;
+                "brew") brew install "$pkg" >/dev/null 2>&1 ;;
+            esac
+            log_success "Installed: $pkg"
+        else
+            log_info "Sudah terinstall: $pkg"
+        fi
+    }
 
-        "brew")
-            brew update >/dev/null 2>&1 &
-            show_spinner $!
-            brew install python ffmpeg git mpv >/dev/null 2>&1 &
-            show_spinner $!
-            ;;
+    install_pkg python
+    install_pkg python3
+    install_pkg pip
+    install_pkg git
+    install_pkg ffmpeg
+    install_pkg curl
+    install_pkg wget
 
-        *)
-            log_error "Package manager tidak dikenali."
-            log_warning "Silakan install manual: python3, pip3, ffmpeg, git, mpv"
-            ;;
-    esac
+    if command_exists mpv; then
+        export HAS_MPV=1
+        log_info "mpv terdeteksi. Play audio/video akan aktif."
+    else
+        install_pkg mpv
+        if command_exists mpv; then
+            export HAS_MPV=1
+            log_success "mpv berhasil diinstall"
+        else
+            export HAS_MPV=0
+            log_warning "mpv tidak tersedia. Play audio/video akan dinonaktifkan."
+        fi
+    fi
 
-    log_success "Dependencies sistem berhasil diinstall"
+    log_success "Dependencies sistem dicek dan aman"
 }
 
 install_python_deps() {
-    log_info "Menginstall modul Python..."
+    log_info "Cek & install modul Python..."
+
     for dep in "${PYTHON_DEPS[@]}"; do
-        pip3 install --upgrade "$dep" >/dev/null 2>&1 &
-        show_spinner $!
+        if ! pip_package_installed "$dep"; then
+            pip3 install --upgrade "$dep" >/dev/null 2>&1 &
+            show_spinner $!
+            log_success "Installed Python module: $dep"
+        else
+            log_info "Sudah ada: $dep"
+        fi
     done
-    log_success "Modul Python berhasil diinstall"
 }
 
 install_script() {
@@ -130,10 +141,6 @@ echo ""
 detect_package_manager
 install_dependencies
 install_python_deps
-install_script
-
-echo ""
-log_success "Instalasi selesai! Jalankan dengan: ${CYA}$APP_NAME${NOC}"
 install_script
 
 echo ""
