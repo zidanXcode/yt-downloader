@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import subprocess, sys, time, platform, os, shutil
+import subprocess, sys, time, platform, os, shutil, threading
 
 IS_WINDOWS = platform.system().lower().startswith('win')
 IS_ANDROID = 'android' in platform.platform().lower() or 'termux' in os.getenv("PREFIX", "").lower()
@@ -32,14 +32,14 @@ def typing(text, delay=0.004):
 
 def banner():
     print(f"{C}Youtube Downloader CLI")
-    print(f"• version : 2.1")
-    print(f"• author  : Zidan")
-    print(f"• github  : https://github.com/zidanXcode{N}")
-    print(f"• platform: {platform.system()} - {platform.release()}\n")
+    print(f"\u2022 version : 2.1")
+    print(f"\u2022 author  : Zidan")
+    print(f"\u2022 github  : https://github.com/zidanXcode{N}")
+    print(f"\u2022 platform: {platform.system()} - {platform.release()}\n")
 
 def auto_update_ytdlp():
     try:
-        typing(f"{C}[•] Mengecek pembaruan yt-dlp...{N}")
+        typing(f"{C}[\u2022] Mengecek pembaruan yt-dlp...{N}")
         subprocess.run(["yt-dlp", "-U"], check=True)
     except Exception as e:
         print(f"{R}[!] Gagal memperbarui yt-dlp: {e}{N}")
@@ -48,7 +48,7 @@ def is_url(text):
     return text.startswith("http://") or text.startswith("https://")
 
 def search_youtube(query):
-    print(f"{C}[•] Mencari video: {query}{N}")
+    print(f"{C}[\u2022] Mencari video: {query}{N}")
     try:
         result = subprocess.run(
             ["yt-dlp", "--no-cache-dir", f"ytsearch1:{query}", "--print", "%(title)s ||| %(webpage_url)s ||| %(duration_string)s ||| %(uploader)s"],
@@ -85,10 +85,10 @@ def download_video(url, res, extra_args=None):
     output_template = os.path.join(DOWNLOAD_DIR, "%(title).60s.%(ext)s")
     cmd = ["yt-dlp", "-f", format_str, "-o", output_template, url]
     cmd += extra_args or []
-    typing(f"\n{C}[•] Mendownload video {res}p...{N}")
+    typing(f"\n{C}[\u2022] Mendownload video {res}p...{N}")
     try:
         subprocess.run(cmd, timeout=600)
-        print(f"{G}[✓] Selesai! Lihat di: {DOWNLOAD_DIR}{N}")
+        print(f"{G}[\u2713] Selesai! Lihat di: {DOWNLOAD_DIR}{N}")
     except Exception as e:
         print(f"{R}[!] Gagal download video: {e}{N}")
 
@@ -96,17 +96,17 @@ def download_audio(url, extra_args=None):
     output_template = os.path.join(DOWNLOAD_DIR, "%(title).60s.%(ext)s")
     cmd = ["yt-dlp", "-x", "--audio-format", "mp3", "--audio-quality", "0", "-o", output_template, url]
     cmd += extra_args or []
-    typing(f"\n{C}[•] Mendownload Audio...{N}")
+    typing(f"\n{C}[\u2022] Mendownload Audio...{N}")
     try:
         subprocess.run(cmd, timeout=600)
-        print(f"{G}[✓] Selesai! Lihat di: {DOWNLOAD_DIR}{N}")
+        print(f"{G}[\u2713] Selesai! Lihat di: {DOWNLOAD_DIR}{N}")
     except Exception as e:
         print(f"{R}[!] Gagal download audio: {e}{N}")
 
 def play_audio_background(url):
     global mpv_process
     if shutil.which("mpv"):
-        typing(f"{C}[•] Streaming audio... (Ketik 'stop' untuk berhenti){N}")
+        typing(f"{C}[\u2022] Streaming audio... (Ketik 'stop' untuk berhenti){N}")
         try:
             mpv_process = subprocess.Popen(["mpv", "--no-video", url])
         except Exception as e:
@@ -118,9 +118,39 @@ def stop_audio():
     global mpv_process
     if mpv_process and mpv_process.poll() is None:
         mpv_process.terminate()
-        print(f"{G}[✓] Audio dihentikan.{N}")
+        print(f"{G}[\u2713] Audio dihentikan.{N}")
     else:
-        print(f"{Y}[•] Tidak ada audio yang sedang diputar.{N}")
+        print(f"{Y}[\u2022] Tidak ada audio yang sedang diputar.{N}")
+
+def tampilkan_lirik(lrc_path):
+    if not os.path.isfile(lrc_path):
+        print(f"{Y}[\u2022] Tidak ditemukan lirik (.lrc) untuk audio ini.{N}")
+        return
+
+    with open(lrc_path, 'r', encoding="utf-8") as f:
+        lines = f.readlines()
+
+    timestamps = []
+    teks = []
+    for line in lines:
+        if line.startswith("["):
+            try:
+                waktu, teks_line = line.strip().split("]", 1)
+                waktu = waktu[1:]
+                m, s = map(float, waktu.split(":"))
+                detik = m * 60 + s
+                timestamps.append(detik)
+                teks.append(teks_line)
+            except:
+                continue
+
+    start_time = time.time()
+    for i in range(len(timestamps)):
+        while time.time() - start_time < timestamps[i]:
+            time.sleep(0.05)
+        sys.stdout.write(f"{G}\u266a {N}")
+        sys.stdout.flush()
+        typing(teks[i], delay=0.03)
 
 def main():
     auto_update_ytdlp()
@@ -151,21 +181,32 @@ def main():
                 if max_videos.isdigit():
                     extra_args = ["--playlist-end", max_videos]
 
-        print(f"\n{C}[1] Download Video (pilih resolusi)")
-        print(f"[2] Download Audio (.mp3)")
-        print(f"[3] Play Audio (stream musik)")
+        print(f"\n{C}[1] Download Video")
+        print(f"[2] Download Audio")
+        print(f"[3] Play Audio")
         print(f"[x] Batal{N}")
         mode = input(f"{Y}[?] Pilih: {N}").strip()
 
         if mode == "1":
             print(f"\n{C}Resolusi tersedia:")
-            print(" • ".join([f"{r}p" for r in RESOLUTION_MAP.keys()]))
+            print(" \u2022 ".join([f"{r}p" for r in RESOLUTION_MAP.keys()]))
             res = input(f"{Y}[?] Resolusi (misal 480): {N}").strip()
             download_video(url, res, extra_args)
         elif mode == "2":
             download_audio(url, extra_args)
         elif mode == "3":
             play_audio_background(url)
+            try:
+                info = subprocess.run(
+                    ["yt-dlp", "--print", "%(title)s", url],
+                    capture_output=True, text=True, timeout=10, check=True
+                )
+                judul = info.stdout.strip()
+                lrc_filename = f"{judul}.lrc"
+                lrc_path = os.path.join(DOWNLOAD_DIR, lrc_filename)
+                threading.Thread(target=tampilkan_lirik, args=(lrc_path,), daemon=True).start()
+            except:
+                pass
             stop = input(f"{Y}[?] Ketik 'stop' untuk hentikan audio: {N}").strip().lower()
             if stop == "stop":
                 stop_audio()
