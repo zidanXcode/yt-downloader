@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import subprocess, sys, time, platform, os, shutil, threading
+import subprocess, sys, time, platform, os, shutil, threading, re
 
 IS_WINDOWS = platform.system().lower().startswith('win')
 IS_ANDROID = 'android' in platform.platform().lower() or 'termux' in os.getenv("PREFIX", "").lower()
@@ -12,7 +12,6 @@ C = '\033[1;36m' if USE_COLOR else ''
 N = '\033[0m' if USE_COLOR else ''
 
 DOWNLOAD_DIR = os.path.expanduser("/Downloads") if IS_WINDOWS else "/sdcard/Download" if IS_ANDROID else os.path.expanduser("/Downloads")
-
 RESOLUTION_MAP = {
     "140": "140",
     "360": "bv*[height<=360]+ba/best[height<=360]",
@@ -29,6 +28,9 @@ def typing(text, delay=0.03):
         sys.stdout.flush()
         time.sleep(delay)
     print()
+
+def safe_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "", name)
 
 def banner():
     print(f"{C}Youtube Downloader CLI")
@@ -106,19 +108,11 @@ def download_audio(url, extra_args=None):
 def play_audio_background(url):
     global mpv_process
     if shutil.which("mpv"):
-        typing(f"{C}[\u2022] Streaming audio kualitas tinggi... (Ketik 'stop' untuk berhenti){N}")
+        typing(f"{C}[\u2022] Streaming audio... (Ketik 'stop' untuk berhenti){N}")
         try:
-            # Ambil direct URL audio berkualitas tinggi
-            result = subprocess.run(
-                ["yt-dlp", "-f", "bestaudio", "-g", url],
-                capture_output=True, text=True, timeout=20, check=True
-            )
-            direct_url = result.stdout.strip()
-            mpv_process = subprocess.Popen([
-                "mpv", "--no-video", "--volume=100", "--af=volume=10", direct_url
-            ])
+            mpv_process = subprocess.Popen(["mpv", "--no-video", "--volume=100", url])
         except Exception as e:
-            print(f"{R}[!] Gagal streaming audio: {e}{N}")
+            print(f"{R}[!] Gagal play audio: {e}{N}")
     else:
         print(f"{R}[!] mpv tidak ditemukan. Instal dulu.{N}")
 
@@ -130,6 +124,31 @@ def stop_audio():
     else:
         print(f"{Y}[\u2022] Tidak ada audio yang sedang diputar.{N}")
 
+def tampilkan_lirik(lrc_path):
+    if not os.path.isfile(lrc_path):
+        print(f"{Y}[\u2022] Tidak ditemukan lirik (.lrc) untuk audio ini.{N}")
+        return
+    with open(lrc_path, 'r', encoding="utf-8") as f:
+        lines = f.readlines()
+    timestamps, teks = [], []
+    for line in lines:
+        if line.startswith("["):
+            try:
+                waktu, teks_line = line.strip().split("]", 1)
+                waktu = waktu[1:]
+                m, s = map(float, waktu.split(":"))
+                detik = m * 60 + s
+                timestamps.append(detik)
+                teks.append(teks_line)
+            except: continue
+    start_time = time.time()
+    for i in range(len(timestamps)):
+        while time.time() - start_time < timestamps[i]:
+            time.sleep(0.05)
+        sys.stdout.write(f"{G}♪ {N}")
+        sys.stdout.flush()
+        typing(teks[i], delay=0.03)
+
 def main():
     auto_update_ytdlp()
     while True:
@@ -138,11 +157,10 @@ def main():
             raw = input(f"{Y}[?] Masukkan URL / Judul ('exit' untuk keluar): {N}").strip()
         except EOFError:
             break
-
         if raw.lower() in ['exit', 'keluar', 'x']:
             print(f"{C}Keluar...{N}")
+            stop_audio()
             break
-
         url = raw if is_url(raw) else search_youtube(raw)
         if not url: continue
 
@@ -174,23 +192,30 @@ def main():
             download_audio(url, extra_args)
         elif mode == "3":
             play_audio_background(url)
+            try:
+                info = subprocess.run(
+                    ["yt-dlp", "--print", "%(title)s", url],
+                    capture_output=True, text=True, timeout=10, check=True
+                )
+                judul = info.stdout.strip()
+                safe_judul = safe_filename(judul)
+                lrc_path = os.path.join(DOWNLOAD_DIR, f"{safe_judul}.lrc")
+                threading.Thread(target=tampilkan_lirik, args=(lrc_path,), daemon=True).start()
+            except: pass
 
-            def monitor_stop():
-                while True:
+            while mpv_process and mpv_process.poll() is None:
+                try:
                     user_input = input(f"{Y}[?] Ketik 'stop' untuk hentikan audio: {N}").strip().lower()
                     if user_input == "stop":
                         stop_audio()
                         break
-
-            threading.Thread(target=monitor_stop, daemon=True).start()
-            while mpv_process and mpv_process.poll() is None:
-                time.sleep(1)
-
+                except KeyboardInterrupt:
+                    stop_audio()
+                    break
         elif mode.lower() in ["x", "exit", "keluar"]:
             print(f"{C}Dibatalkan...{N}")
         else:
             print(f"{R}[!] Pilihan tidak valid.{N}")
-
         input(f"\n{Y}Tekan Enter untuk lanjut...{N}")
         print()
 
@@ -199,4 +224,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print(f"\n{C}Keluar dari program...{N}")
+        stop_audio()
         sys.exit(0)
