@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import subprocess, sys, time, platform, os, shutil, threading
+import subprocess, sys, time, platform, os, shutil, threading, re
 
 IS_WINDOWS = platform.system().lower().startswith('win')
 IS_ANDROID = 'android' in platform.platform().lower() or 'termux' in os.getenv("PREFIX", "").lower()
@@ -23,12 +23,15 @@ RESOLUTION_MAP = {
 
 mpv_process = None
 
-def typing(text, delay=0.004):
+def typing(text, delay=0.03):
     for char in text:
         sys.stdout.write(char)
         sys.stdout.flush()
         time.sleep(delay)
     print()
+
+def safe_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "", name)
 
 def banner():
     print(f"{C}Youtube Downloader CLI")
@@ -108,7 +111,7 @@ def play_audio_background(url):
     if shutil.which("mpv"):
         typing(f"{C}[\u2022] Streaming audio... (Ketik 'stop' untuk berhenti){N}")
         try:
-            mpv_process = subprocess.Popen(["mpv", "--no-video", url])
+            mpv_process = subprocess.Popen(["mpv", "--no-video", "--volume=100", url])
         except Exception as e:
             print(f"{R}[!] Gagal play audio: {e}{N}")
     else:
@@ -148,7 +151,7 @@ def tampilkan_lirik(lrc_path):
     for i in range(len(timestamps)):
         while time.time() - start_time < timestamps[i]:
             time.sleep(0.05)
-        sys.stdout.write(f"{G}\u266a {N}")
+        sys.stdout.write(f"{G}♪ {N}")
         sys.stdout.flush()
         typing(teks[i], delay=0.03)
 
@@ -202,14 +205,23 @@ def main():
                     capture_output=True, text=True, timeout=10, check=True
                 )
                 judul = info.stdout.strip()
-                lrc_filename = f"{judul}.lrc"
-                lrc_path = os.path.join(DOWNLOAD_DIR, lrc_filename)
+                safe_judul = safe_filename(judul)
+                lrc_path = os.path.join(DOWNLOAD_DIR, f"{safe_judul}.lrc")
                 threading.Thread(target=tampilkan_lirik, args=(lrc_path,), daemon=True).start()
             except:
                 pass
-            stop = input(f"{Y}[?] Ketik 'stop' untuk hentikan audio: {N}").strip().lower()
-            if stop == "stop":
-                stop_audio()
+
+            def monitor_stop():
+                while True:
+                    user_input = input(f"{Y}[?] Ketik 'stop' untuk hentikan audio: {N}").strip().lower()
+                    if user_input == "stop":
+                        stop_audio()
+                        break
+
+            threading.Thread(target=monitor_stop, daemon=True).start()
+            while mpv_process and mpv_process.poll() is None:
+                time.sleep(1)
+
         elif mode.lower() in ["x", "exit", "keluar"]:
             print(f"{C}Dibatalkan...{N}")
         else:
